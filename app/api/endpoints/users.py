@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
-from app.models.user import UserCreate, User, Token
+from app.models.user import UserCreate, User, Token, UserLogin
 from app.core.security import (
     verify_password,
     create_access_token,
@@ -39,23 +39,15 @@ async def register_user(user_data: UserCreate):
 
 
 @router.post("/login", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+async def login(user_data: UserLogin):
     db = MongoDB.get_db()
 
-    user = await db.users.find_one({"username": form_data.username})
+    user = await db.users.find_one({"username": user_data.username})
     if not user:
-        raise HTTPException(
-            status_code=401,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise HTTPException(status_code=401, detail="Incorrect username or password")
 
-    if not verify_password(form_data.password, user["password"]):
-        raise HTTPException(
-            status_code=401,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    if not verify_password(user_data.password, user["password"]):
+        raise HTTPException(status_code=401, detail="Incorrect username or password")
 
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
