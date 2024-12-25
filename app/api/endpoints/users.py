@@ -3,9 +3,9 @@ from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
 from app.models.user import UserCreate, User, Token, UserLogin
 from app.core.security import (
+    get_token,
     verify_password,
     create_access_token,
-    oauth2_scheme,
     hash_password,
     verify_token,
 )
@@ -58,7 +58,7 @@ async def login(user_data: UserLogin):
 
 
 @router.get("/me", response_model=User)
-async def read_users_me(token: str = Depends(oauth2_scheme)):
+async def read_users_me(token: str = Depends(get_token)):
     username = await verify_token(token)
 
     db = MongoDB.get_db()
