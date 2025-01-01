@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import OAuth2PasswordRequestForm
-from datetime import timedelta
+from datetime import timedelta, timezone
 from app.models.user import UserCreate, User, Token, UserLogin
 from app.core.security import (
     get_token,
@@ -27,9 +27,14 @@ async def register_user(user_data: UserCreate):
         raise HTTPException(status_code=400, detail="Email already registered")
 
     user_dict = user_data.model_dump()
-    user_dict["password"] = hash_password(user_dict["password"])
-    user_dict["created_at"] = datetime.utcnow()
-    user_dict["updated_at"] = None
+    user_dict.update(
+        {
+            "password": hash_password(user_dict["password"]),
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": None,
+            "deleted_at": None,
+        }
+    )
 
     result = await db.users.insert_one(user_dict)
     created_user = await db.users.find_one({"_id": result.inserted_id})
