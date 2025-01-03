@@ -97,8 +97,6 @@ async def get_users(
             "page": page,
             "size": size,
             "pages": total_pages,
-            "has_next": page < total_pages,
-            "has_prev": page > 1,
             "sort_by": sort_by,
             "sort_order": sort_order,
         }
