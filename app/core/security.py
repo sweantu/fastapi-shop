@@ -3,12 +3,9 @@ from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException
-from fastapi.security import (
-    HTTPAuthorizationCredentials,
-    HTTPBearer,
-    OAuth2PasswordBearer,
-)
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.core.config import settings
+from app.db.mongodb import MongoDB
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = HTTPBearer()
@@ -50,3 +47,16 @@ async def verify_token(token: str) -> str:
         return username
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid authentication token")
+
+
+# Admin middleware
+async def verify_admin(token: str = Depends(get_token)):
+    username = await verify_token(token)
+    db = MongoDB.get_db()
+    user = await db.users.find_one({"username": username})
+
+    if not user or user.get("role") != "admin":
+        raise HTTPException(
+            status_code=403, detail="Not authorized to access admin resources"
+        )
+    return username

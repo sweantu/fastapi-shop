@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional
 from datetime import datetime, timezone
 from app.models.user import User, UserRole, UserUpdate
-from app.core.security import get_token, verify_token
+from app.core.security import get_token, verify_admin, verify_token
 from app.db.mongodb import MongoDB
 from bson import ObjectId
 from app.core.validators import ObjectIdParam
@@ -10,19 +10,6 @@ from math import ceil
 from enum import Enum
 
 router = APIRouter()
-
-
-# Admin middleware
-async def verify_admin(token: str = Depends(get_token)):
-    username = await verify_token(token)
-    db = MongoDB.get_db()
-    user = await db.users.find_one({"username": username})
-
-    if not user or user.get("role") != "admin":
-        raise HTTPException(
-            status_code=403, detail="Not authorized to access admin resources"
-        )
-    return username
 
 
 class SortOrder(str, Enum):

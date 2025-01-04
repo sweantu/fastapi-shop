@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.db.mongodb import MongoDB
 from app.api.endpoints import users, health
-from app.api.endpoints.admin import users as admin_users
+from app.api.endpoints.admin import users as admin_users, products as admin_products
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
@@ -29,6 +29,9 @@ app.add_middleware(
 app.include_router(health.router, prefix="/system", tags=["system"])
 app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(admin_users.router, prefix="/admin/users", tags=["admin"])
+app.include_router(
+    admin_products.router, prefix="/admin/products", tags=["admin-products"]
+)
 
 # Root endpoint
 @app.get("/")
