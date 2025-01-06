@@ -27,7 +27,6 @@ class ProductCreate(BaseModel):
 
     @field_validator("price")
     def validate_price(cls, v):
-        print(v, "validate_price")
         return Decimal(str(v)).quantize(Decimal("0.01"))
 
     @field_serializer("price")
@@ -51,16 +50,11 @@ class Product(BaseModel):
     updated_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None
 
-    @classmethod
-    def model_validate(cls, obj):
-        # Convert Decimal128 to string before validation
-        if isinstance(obj.get("price"), Decimal128):
-            obj = dict(obj)  # Create a copy to avoid modifying the original
-            obj["price"] = str(obj["price"])
-        return super().model_validate(obj)
-
-    @field_validator("price")
+    @field_validator("price", mode="before")
     def validate_price(cls, v):
+        # Convert Decimal128 to string before validation
+        if isinstance(v, Decimal128):
+            v = str(v)
         return Decimal(str(v)).quantize(Decimal("0.01"))
 
 

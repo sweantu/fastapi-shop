@@ -39,7 +39,7 @@ async def create_product(
     created_product["id"] = str(created_product.pop("_id"))
 
     # Convert to Product model
-    return Product.model_validate(created_product)
+    return created_product
 
 
 @router.get("/", response_model=dict)
@@ -87,13 +87,10 @@ async def get_products(
             cursor = cursor.sort(list(sort_options.items()))
         cursor = cursor.skip(skip).limit(size)
 
-        print(list(sort_options.items()), "sort_options")
-
         products = []
         async for product in cursor:
             product["id"] = str(product.pop("_id"))
-            products.append(Product.model_validate(product))
-
+            products.append(Product(**product))
         return {
             "items": products,
             "total": total,
@@ -119,7 +116,7 @@ async def get_product(product_id: ObjectIdParam, admin: str = Depends(verify_adm
         raise HTTPException(status_code=404, detail="Product not found")
 
     product["id"] = str(product.pop("_id"))
-    return Product.model_validate(product)
+    return product
 
 
 @router.put("/{product_id}", response_model=Product)
@@ -152,7 +149,7 @@ async def update_product(
     )
 
     result["id"] = str(result.pop("_id"))
-    return Product.model_validate(result)
+    return result
 
 
 @router.delete("/{product_id}")
