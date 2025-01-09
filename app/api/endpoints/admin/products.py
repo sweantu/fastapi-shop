@@ -1,5 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends, Query, Path
-from typing import Annotated, List, Optional
+from fastapi import APIRouter, HTTPException, Depends, Query
+from typing import Optional
 from datetime import datetime, timezone
 from app.models.product import Product, ProductCreate, ProductUpdate, ProductStatus
 from app.core.security import verify_admin

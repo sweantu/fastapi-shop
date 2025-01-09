@@ -73,3 +73,4 @@ async def read_users_me(token: str = Depends(get_token)):
 
     user["id"] = str(user.pop("_id"))
     return user
+
