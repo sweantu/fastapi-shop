@@ -7,6 +7,7 @@ from app.core.validators import ObjectIdParam
 from app.db.mongodb import MongoDB
 from bson import ObjectId
 from math import ceil
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -20,6 +21,15 @@ async def create_product(
     # Check if SKU exists
     if await db.products.find_one({"sku": product_data.sku}):
         raise HTTPException(status_code=400, detail="SKU already exists")
+
+    # Validate image URLs
+    if product_data.images:
+        # You might want to validate that the URLs exist in your S3 bucket
+        for image_url in product_data.images:
+            if not image_url.startswith(settings.AWS_BUCKET_URL):
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid image URL: {image_url}"
+                )
 
     # Prepare product data
     product_dict = product_data.model_dump()
@@ -140,9 +150,17 @@ async def update_product(
         if existing:
             raise HTTPException(status_code=400, detail="SKU already exists")
 
+    # Validate image URLs if updating
+    if product_data.images is not None:
+        for image_url in product_data.images:
+            if not image_url.startswith(settings.AWS_BUCKET_URL):
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid image URL: {image_url}"
+                )
+
     # Update product
     update_data = product_data.model_dump(exclude_unset=True)
-    update_data.update({"updated_at": datetime.now(timezone.utc)})
+    update_data["updated_at"] = datetime.now(timezone.utc)
 
     result = await db.products.find_one_and_update(
         {"_id": ObjectId(product_id)}, {"$set": update_data}, return_document=True

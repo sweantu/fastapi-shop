@@ -23,11 +23,18 @@ class ProductCreate(BaseModel):
     sku: str = Field(..., min_length=3, max_length=50)
     category: str = Field(..., min_length=1)
     tags: List[str] = Field(default=[])
+    images: List[str] = Field(default=[])
     status: ProductStatus = Field(default=ProductStatus.DRAFT)
 
     @field_validator("price")
     def validate_price(cls, v):
         return Decimal(str(v)).quantize(Decimal("0.01"))
+
+    @field_validator("images")
+    def validate_images(cls, v):
+        if len(v) > 10:
+            raise ValueError("Maximum 10 images allowed per product")
+        return v
 
     @field_serializer("price")
     def serialize_price(self, price: Decimal) -> Decimal128:
@@ -45,6 +52,7 @@ class Product(BaseModel):
     sku: str
     category: str
     tags: List[str]
+    images: List[str]
     status: ProductStatus
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -68,12 +76,19 @@ class ProductUpdate(BaseModel):
     sku: Optional[str] = Field(None, min_length=3, max_length=50)
     category: Optional[str] = Field(None, min_length=1)
     tags: Optional[List[str]] = None
+    images: Optional[List[str]] = None
     status: Optional[ProductStatus] = None
 
     @field_validator("price")
     def validate_price(cls, v):
         if v is not None:
             return Decimal(str(v)).quantize(Decimal("0.01"))
+        return v
+
+    @field_validator("images")
+    def validate_images(cls, v):
+        if v is not None and len(v) > 10:
+            raise ValueError("Maximum 10 images allowed per product")
         return v
 
     @field_serializer("price")

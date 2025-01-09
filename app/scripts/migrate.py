@@ -9,6 +9,7 @@ MIGRATIONS = [
     "20250101_001_add_user_roles.AddUserRolesMigration",
     "20250101_002_add_user_indexes.AddUserIndexesMigration",
     "20250104_001_add_product_indexes.AddProductIndexesMigration",
+    "20250109_001_add_product_images.AddProductImagesMigration",
 ]
 
 
