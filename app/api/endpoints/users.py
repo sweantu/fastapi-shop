@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
-from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta, timezone
-from app.models.user import UserCreate, User, Token, UserLogin
+from app.models.user import UserCreate, User, Token, UserLogin, UserUpdate
 from app.core.security import (
     get_token,
     verify_password,
@@ -12,6 +11,7 @@ from app.core.security import (
 from app.db.mongodb import MongoDB
 from app.core.config import settings
 from datetime import datetime
+from bson import ObjectId
 
 router = APIRouter()
 
@@ -74,3 +74,28 @@ async def read_users_me(token: str = Depends(get_token)):
     user["id"] = str(user.pop("_id"))
     return user
 
+
+@router.put("/me", response_model=User)
+async def update_current_user(user_data: UserUpdate, token: str = Depends(get_token)):
+    db = MongoDB.get_db()
+    username = await verify_token(token)
+    update_data = user_data.model_dump(exclude_unset=True)
+
+    # Validate avatar URL if provided
+    if user_data.avatar is not None:
+        if user_data.avatar and not user_data.avatar.startswith(
+            settings.AWS_BUCKET_URL
+        ):
+            raise HTTPException(status_code=400, detail="Invalid avatar URL")
+
+    update_data["updated_at"] = datetime.now(timezone.utc)
+
+    result = await db.users.find_one_and_update(
+        {"username": username}, {"$set": update_data}, return_document=True
+    )
+
+    if not result:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    result["id"] = str(result.pop("_id"))
+    return result

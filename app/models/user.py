@@ -2,6 +2,7 @@ from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 from typing import Optional
 from enum import Enum
+from pydantic import ConfigDict
 
 
 class UserRole(str, Enum):
@@ -15,12 +16,16 @@ class UserCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     email: EmailStr
     role: UserRole = UserRole.USER  # Default role for new users
+    avatar: Optional[str] = None
 
 class User(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     id: str
     username: str
     name: str
     email: EmailStr
+    avatar: Optional[str] = None
     role: UserRole
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -40,5 +45,4 @@ class TokenData(BaseModel):
 
 class UserUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100)
-    email: Optional[EmailStr] = None
-    role: Optional[UserRole] = None
+    avatar: Optional[str] = None
