@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional
 from datetime import datetime, timezone
 from app.models.user import User, UserRole, UserUpdate
-from app.core.security import get_token, verify_admin, verify_token
+from app.core.security import get_current_admin
 from app.db.mongodb import MongoDB
 from bson import ObjectId
 from app.core.validators import ObjectIdParam
@@ -30,7 +30,7 @@ async def get_users(
     sort_order: SortOrder = Query(
         SortOrder.ASC, description="Sort order (asc or desc)"
     ),
-    admin: str = Depends(verify_admin),
+    admin: User = Depends(get_current_admin),
 ):
     db = MongoDB.get_db()
     query = {}
@@ -98,7 +98,7 @@ async def get_users(
 
 # Get user by ID
 @router.get("/{user_id}", response_model=User)
-async def get_user(user_id: ObjectIdParam, admin: str = Depends(verify_admin)):
+async def get_user(user_id: ObjectIdParam, admin: User = Depends(get_current_admin)):
     db = MongoDB.get_db()
     user = await db.users.find_one({"_id": ObjectId(user_id)})
 
@@ -114,7 +114,7 @@ async def get_user(user_id: ObjectIdParam, admin: str = Depends(verify_admin)):
 async def update_user(
     user_id: ObjectIdParam,
     user_data: UserUpdate,
-    admin: str = Depends(verify_admin),
+    admin: User = Depends(get_current_admin),
 ):
     db = MongoDB.get_db()
 
@@ -136,7 +136,7 @@ async def update_user(
 @router.delete("/{user_id}")
 async def delete_user(
     user_id: ObjectIdParam,
-    admin: str = Depends(verify_admin),
+    admin: User = Depends(get_current_admin),
 ):
     db = MongoDB.get_db()
     result = await db.users.find_one_and_update(

@@ -2,7 +2,8 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Optional
 from datetime import datetime, timezone
 from app.models.product import Product, ProductCreate, ProductUpdate, ProductStatus
-from app.core.security import verify_admin
+from app.models.user import User
+from app.core.security import get_current_admin
 from app.core.validators import ObjectIdParam
 from app.db.mongodb import MongoDB
 from bson import ObjectId
@@ -14,7 +15,7 @@ router = APIRouter()
 
 @router.post("/", response_model=Product)
 async def create_product(
-    product_data: ProductCreate, admin: str = Depends(verify_admin)
+    product_data: ProductCreate, admin: User = Depends(get_current_admin)
 ):
     db = MongoDB.get_db()
 
@@ -61,7 +62,7 @@ async def get_products(
     search: Optional[str] = None,
     sort_by: Optional[str] = Query(None, description="Field to sort by"),
     sort_order: Optional[str] = Query("asc", description="Sort order (asc or desc)"),
-    admin: str = Depends(verify_admin),
+    admin: User = Depends(get_current_admin),
 ):
     db = MongoDB.get_db()
     query = {"deleted_at": None}  # Exclude soft-deleted products
@@ -118,7 +119,9 @@ async def get_products(
 
 
 @router.get("/{product_id}", response_model=Product)
-async def get_product(product_id: ObjectIdParam, admin: str = Depends(verify_admin)):
+async def get_product(
+    product_id: ObjectIdParam, admin: User = Depends(get_current_admin)
+):
     db = MongoDB.get_db()
     product = await db.products.find_one({"_id": ObjectId(product_id)})
 
@@ -133,7 +136,7 @@ async def get_product(product_id: ObjectIdParam, admin: str = Depends(verify_adm
 async def update_product(
     product_id: ObjectIdParam,
     product_data: ProductUpdate,
-    admin: str = Depends(verify_admin),
+    admin: User = Depends(get_current_admin),
 ):
     db = MongoDB.get_db()
 
@@ -171,7 +174,9 @@ async def update_product(
 
 
 @router.delete("/{product_id}")
-async def delete_product(product_id: ObjectIdParam, admin: str = Depends(verify_admin)):
+async def delete_product(
+    product_id: ObjectIdParam, admin: User = Depends(get_current_admin)
+):
     db = MongoDB.get_db()
 
     # Soft delete

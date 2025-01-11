@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from datetime import timedelta, timezone
 from app.models.user import UserCreate, User, Token, UserLogin, UserUpdate
 from app.core.security import (
-    get_token,
+    get_current_user,
     verify_password,
     create_access_token,
     hash_password,
@@ -63,22 +63,15 @@ async def login(user_data: UserLogin):
 
 
 @router.get("/me", response_model=User)
-async def read_users_me(token: str = Depends(get_token)):
-    username = await verify_token(token)
-
-    db = MongoDB.get_db()
-    user = await db.users.find_one({"username": username})
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    user["id"] = str(user.pop("_id"))
+async def read_users_me(user: User = Depends(get_current_user)):
     return user
 
 
 @router.put("/me", response_model=User)
-async def update_current_user(user_data: UserUpdate, token: str = Depends(get_token)):
+async def update_current_user(
+    user_data: UserUpdate, user: User = Depends(get_current_user)
+):
     db = MongoDB.get_db()
-    username = await verify_token(token)
     update_data = user_data.model_dump(exclude_unset=True)
 
     # Validate avatar URL if provided
@@ -91,7 +84,7 @@ async def update_current_user(user_data: UserUpdate, token: str = Depends(get_to
     update_data["updated_at"] = datetime.now(timezone.utc)
 
     result = await db.users.find_one_and_update(
-        {"username": username}, {"$set": update_data}, return_document=True
+        {"username": user.username}, {"$set": update_data}, return_document=True
     )
 
     if not result:

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.db.mongodb import MongoDB
-from app.api.endpoints import files, users, health, products
+from app.api.endpoints import files, users, health, products, carts
 from app.api.endpoints.admin import users as admin_users, products as admin_products
 from contextlib import asynccontextmanager
 
@@ -35,6 +35,7 @@ app.include_router(
     admin_products.router, prefix="/admin/products", tags=["admin-products"]
 )
 app.include_router(products.router, prefix="/products", tags=["products"])
+app.include_router(carts.router, prefix="/carts", tags=["carts"])
 app.include_router(files.router, prefix="/files", tags=["files"])
 
 
