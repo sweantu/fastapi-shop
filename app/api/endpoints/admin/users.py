@@ -1,3 +1,4 @@
+from decimal import Decimal
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional
 from datetime import datetime, timezone
@@ -75,6 +76,7 @@ async def get_users(
         users = []
         async for user in cursor:
             user["id"] = str(user.pop("_id"))
+            user["balance"] = Decimal(str(user["balance"]))
             users.append(user)
 
         # Prepare response

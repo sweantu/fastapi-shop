@@ -68,8 +68,6 @@ class UserUpdate(BaseModel):
 class UserUpdateByAdmin(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    name: Optional[str] = Field(None, min_length=2)
-    avatar: Optional[str] = None
     balance: Optional[Decimal] = Field(None, ge=0)
 
     @field_validator("balance")
