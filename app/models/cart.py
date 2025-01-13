@@ -10,16 +10,6 @@ class CartItem(BaseModel):
 
     product_id: str
     quantity: int
-    name: str  # Product name for quick access
-    price: Decimal  # Price at time of adding to cart
-    image: Optional[str] = None  # First product image if available
-
-    @field_validator("price", mode="before")
-    def validate_price(cls, v):
-        # Convert Decimal128 to string before validation
-        if isinstance(v, Decimal128):
-            v = str(v)
-        return Decimal(str(v)).quantize(Decimal("0.01"))
 
 
 class Cart(BaseModel):
@@ -50,3 +40,22 @@ class CartUpsert(BaseModel):
         if len(product_ids) != len(set(product_ids)):
             raise ValueError("Duplicate product_id found in cart items")
         return items
+
+
+class CartItemResponse(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    product_id: str
+    quantity: int
+    name: str  # Product name for quick access
+    price: Decimal  # Price at time of adding to cart
+    image: Optional[str] = None  # First product image if available
+    stock: int
+
+
+class CartResponse(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    user_id: str
+    items: List[CartItemResponse] = Field(default=[])
+    updated_at: Optional[datetime] = None
