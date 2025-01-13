@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional
 from datetime import datetime, timezone
-from app.models.user import User, UserRole, UserUpdate
+from app.models.user import User, UserRole, UserUpdate, UserUpdateByAdmin
 from app.core.security import get_current_admin
 from app.db.mongodb import MongoDB
 from bson import ObjectId
@@ -113,7 +113,7 @@ async def get_user(user_id: ObjectIdParam, admin: User = Depends(get_current_adm
 @router.put("/{user_id}", response_model=User)
 async def update_user(
     user_id: ObjectIdParam,
-    user_data: UserUpdate,
+    user_data: UserUpdateByAdmin,
     admin: User = Depends(get_current_admin),
 ):
     db = MongoDB.get_db()

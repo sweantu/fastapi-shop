@@ -11,7 +11,7 @@ from app.core.security import (
 from app.db.mongodb import MongoDB
 from app.core.config import settings
 from datetime import datetime
-from bson import ObjectId
+from bson import Decimal128, ObjectId
 
 router = APIRouter()
 
@@ -33,6 +33,7 @@ async def register_user(user_data: UserCreate):
             "created_at": datetime.now(timezone.utc),
             "updated_at": None,
             "deleted_at": None,
+            "balance": Decimal128("0.00"),
         }
     )
 
