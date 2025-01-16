@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.db.mongodb import MongoDB
-from app.api.endpoints import files, users, health, products, carts
+from app.api.endpoints import files, transactions, users, health, products, carts
 from app.api.endpoints.admin import users as admin_users, products as admin_products
 from contextlib import asynccontextmanager
 
@@ -30,6 +30,7 @@ app.add_middleware(
 # Include routers
 app.include_router(health.router, prefix="/system", tags=["system"])
 app.include_router(users.router, prefix="/users", tags=["users"])
+app.include_router(transactions.router, prefix="/transactions", tags=["transactions"])
 app.include_router(admin_users.router, prefix="/admin/users", tags=["admin"])
 app.include_router(
     admin_products.router, prefix="/admin/products", tags=["admin-products"]

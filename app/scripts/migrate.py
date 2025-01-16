@@ -13,6 +13,7 @@ MIGRATIONS = [
     "20250110_001_add_default_user_avatar.AddDefaultUserAvatarMigration",
     "20250111_001_add_cart_indexes.AddCartIndexesMigration",
     "20250113_001_add_user_balance.AddUserBalanceMigration",
+    "20250113_002_create_transactions.CreateTransactionsMigration",
 ]
 
 
