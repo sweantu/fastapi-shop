@@ -1,13 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends
 from datetime import timedelta
 from app.models.user import UserCreate, UserResponse, Token, UserLogin, UserUpdate
-from app.core.security import get_current_user, verify_password, create_access_token
+from app.core.security import get_current_user, create_access_token
 from app.core.config import settings
-from app.models.transaction import TransactionCreate, TransactionType, Transaction
-from app.services.transaction import TransactionService
 from app.services.user import UserService
-from decimal import Decimal
-from typing import List
+from app.utils.auth import verify_password
 
 router = APIRouter()
 

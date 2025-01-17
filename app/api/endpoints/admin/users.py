@@ -1,13 +1,9 @@
-from decimal import Decimal
 from fastapi import APIRouter, HTTPException, Depends, Query
-from typing import List, Optional
-from datetime import datetime, timezone
-from app.models.user import UserResponse, UserRole, UserUpdate, UserUpdateByAdmin
+from typing import Optional
+from app.models.user import UserResponse, UserRole, UserUpdateByAdmin, UserBase
 from app.core.security import get_current_admin
-from app.db.mongodb import MongoDB
-from bson import ObjectId
 from app.core.validators import ObjectIdParam
-from math import ceil
+from app.services.user import UserService
 from enum import Enum
 
 router = APIRouter()
@@ -18,7 +14,6 @@ class SortOrder(str, Enum):
     DESC = "desc"
 
 
-# Get all users with pagination and filters
 @router.get("/", response_model=dict)
 async def get_users(
     page: int = Query(1, ge=1, description="Page number"),
@@ -31,57 +26,26 @@ async def get_users(
     sort_order: SortOrder = Query(
         SortOrder.ASC, description="Sort order (asc or desc)"
     ),
-    admin: UserResponse = Depends(get_current_admin),
+    admin: UserBase = Depends(get_current_admin),
+    user_service: UserService = Depends(),
 ):
-    db = MongoDB.get_db()
-    query = {}
-
-    # Apply filters
-    if role:
-        query["role"] = role
-    if search:
-        query["$or"] = [
-            {"username": {"$regex": search, "$options": "i"}},
-            {"email": {"$regex": search, "$options": "i"}},
-            {"name": {"$regex": search, "$options": "i"}},
-        ]
-
+    """Get all users with pagination and filters"""
     try:
-        # Get total count
-        total = await db.users.count_documents(query)
+        # Get users with pagination and filters
+        users, total = await user_service.get_users(
+            skip=(page - 1) * size,
+            limit=size,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            search=search,
+            role=role,
+        )
 
-        # Calculate pagination
-        total_pages = ceil(total / size)
-        skip = (page - 1) * size
-
-        # Prepare sort
-        sort_options = {}
-        if sort_by:
-            # Convert id to _id for MongoDB
-            if sort_by == "id":
-                sort_by = "_id"
-            sort_options[sort_by] = 1 if sort_order == SortOrder.ASC else -1
-
-        # Get paginated and sorted users
-        cursor = db.users.find(query)
-
-        # Apply sort if specified
-        if sort_options:
-            cursor = cursor.sort(list(sort_options.items()))
-
-        # Apply pagination
-        cursor = cursor.skip(skip).limit(size)
-
-        # Process results
-        users = []
-        async for user in cursor:
-            user["id"] = str(user.pop("_id"))
-            user["balance"] = Decimal(str(user["balance"]))
-            users.append(user)
-
+        # Calculate pagination info
+        total_pages = (total + size - 1) // size
         # Prepare response
         return {
-            "items": users,
+            "items": [UserResponse.model_validate(user.model_dump()) for user in users],
             "total": total,
             "page": page,
             "size": size,
@@ -98,58 +62,38 @@ async def get_users(
         raise HTTPException(status_code=500, detail=f"Error fetching users: {str(e)}")
 
 
-# Get user by ID
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user(
-    user_id: ObjectIdParam, admin: UserResponse = Depends(get_current_admin)
+    user_id: ObjectIdParam,
+    admin: UserBase = Depends(get_current_admin),
+    user_service: UserService = Depends(),
 ):
-    db = MongoDB.get_db()
-    user = await db.users.find_one({"_id": ObjectId(user_id)})
-
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    user["id"] = str(user.pop("_id"))
+    """Get user by ID"""
+    user = await user_service.get_user_by_id(str(user_id))
     return user
 
 
-# Update user
 @router.put("/{user_id}", response_model=UserResponse)
 async def update_user(
     user_id: ObjectIdParam,
     user_data: UserUpdateByAdmin,
-    admin: UserResponse = Depends(get_current_admin),
+    admin: UserBase = Depends(get_current_admin),
+    user_service: UserService = Depends(),
 ):
-    db = MongoDB.get_db()
-
-    update_data = user_data.model_dump(exclude_unset=True)
-    update_data["updated_at"] = datetime.now(timezone.utc)
-
-    result = await db.users.find_one_and_update(
-        {"_id": ObjectId(user_id)}, {"$set": update_data}, return_document=True
-    )
-
-    if not result:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    result["id"] = str(result.pop("_id"))
-    return result
+    """Update user data by admin"""
+    updated_user = await user_service.update_user(str(user_id), user_data)
+    return updated_user
 
 
-# Soft delete user
 @router.delete("/{user_id}")
 async def delete_user(
     user_id: ObjectIdParam,
-    admin: UserResponse = Depends(get_current_admin),
+    admin: UserBase = Depends(get_current_admin),
+    user_service: UserService = Depends(),
 ):
-    db = MongoDB.get_db()
-    result = await db.users.find_one_and_update(
-        {"_id": ObjectId(user_id)},
-        {"$set": {"deleted_at": datetime.now(timezone.utc)}},
-        return_document=True,
-    )
-
-    if not result:
+    """Soft delete user"""
+    success = await user_service.soft_delete_user(str(user_id))
+    if not success:
         raise HTTPException(status_code=404, detail="User not found")
 
     return {"message": "User deleted successfully"}

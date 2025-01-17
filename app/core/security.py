@@ -1,23 +1,13 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.core.config import settings
-from app.db.mongodb import MongoDB
-from app.models.user import UserResponse, UserRole
+from app.models.user import UserBase, UserRole
+from app.services.user import UserService
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = HTTPBearer()
-
-
-def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
-
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -50,20 +40,20 @@ async def verify_token(token: str) -> str:
         raise HTTPException(status_code=401, detail="Invalid authentication token")
 
 
-async def get_current_user(token: str = Depends(get_token)) -> UserResponse:
+async def get_current_user(
+    token: str = Depends(get_token), user_service: UserService = Depends()
+) -> UserBase:
     username = await verify_token(token)
-    db = MongoDB.get_db()
-    user = await db.users.find_one({"username": username})
+    user = await user_service.get_user_by_username(username)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    user["id"] = str(user.pop("_id"))
-    return UserResponse(**user)
+    return user
 
 
 # Admin middleware
 async def get_current_admin(
-    user: UserResponse = Depends(get_current_user),
-) -> UserResponse:
+    user: UserBase = Depends(get_current_user),
+) -> UserBase:
     if not user or user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=403, detail="Not authorized to access admin resources"

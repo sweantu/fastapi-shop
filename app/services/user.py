@@ -11,8 +11,8 @@ from datetime import datetime, timezone
 from bson import ObjectId, Decimal128
 from decimal import Decimal
 from typing import List, Optional
-from app.core.security import hash_password
-from math import ceil
+
+from app.utils.auth import hash_password
 
 
 class UserService:
@@ -126,8 +126,8 @@ class UserService:
         self,
         skip: int = 0,
         limit: int = 50,
-        sort_by: str = "created_at",
-        sort_order: str = "desc",
+        sort_by: Optional[str] = "created_at",
+        sort_order: Optional[str] = "desc",
         search: Optional[str] = None,
         role: Optional[UserRole] = None,
     ) -> tuple[List[UserBase], int]:
@@ -143,12 +143,16 @@ class UserService:
         if role:
             query["role"] = role
 
+        # Handle sort parameters
+        sort_field = sort_by if sort_by is not None else "created_at"
+        sort_direction = -1 if sort_order == "desc" else 1
+
         # Get total count
         total = await self.db.users.count_documents(query)
 
         # Get users
         cursor = self.db.users.find(query)
-        cursor = cursor.sort(sort_by, -1 if sort_order == "desc" else 1)
+        cursor = cursor.sort(sort_field, sort_direction)
         cursor = cursor.skip(skip).limit(limit)
 
         users = []
