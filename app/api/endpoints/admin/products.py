@@ -1,56 +1,38 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Optional
-from datetime import datetime, timezone
-from app.models.product import Product, ProductCreate, ProductUpdate, ProductStatus
-from app.models.user import UserResponse
+from app.models.product import ProductBase, ProductCreate, ProductUpdate, ProductStatus
+from app.models.user import UserBase
 from app.core.security import get_current_admin
 from app.core.validators import ObjectIdParam
-from app.db.mongodb import MongoDB
-from bson import ObjectId
-from math import ceil
+from app.services.product import ProductService
 from app.core.config import settings
+from decimal import Decimal
+from enum import Enum
 
 router = APIRouter()
 
 
-@router.post("/", response_model=Product)
+class SortOrder(str, Enum):
+    ASC = "asc"
+    DESC = "desc"
+
+
+@router.post("/", response_model=ProductBase)
 async def create_product(
-    product_data: ProductCreate, admin: UserResponse = Depends(get_current_admin)
+    product_data: ProductCreate,
+    admin: UserBase = Depends(get_current_admin),
+    product_service: ProductService = Depends(),
 ):
-    db = MongoDB.get_db()
-
-    # Check if SKU exists
-    if await db.products.find_one({"sku": product_data.sku}):
-        raise HTTPException(status_code=400, detail="SKU already exists")
-
+    """Create a new product"""
     # Validate image URLs
     if product_data.images:
-        # You might want to validate that the URLs exist in your S3 bucket
         for image_url in product_data.images:
             if not image_url.startswith(settings.AWS_BUCKET_URL):
                 raise HTTPException(
                     status_code=400, detail=f"Invalid image URL: {image_url}"
                 )
 
-    # Prepare product data
-    product_dict = product_data.model_dump()
-    product_dict.update(
-        {
-            "created_at": datetime.now(timezone.utc),
-            "updated_at": None,
-            "deleted_at": None,
-        }
-    )
-
-    # Insert product
-    result = await db.products.insert_one(product_dict)
-
-    # Get created product
-    created_product = await db.products.find_one({"_id": result.inserted_id})
-    created_product["id"] = str(created_product.pop("_id"))
-
-    # Convert to Product model
-    return created_product
+    return await product_service.create_product(product_data)
 
 
 @router.get("/", response_model=dict)
@@ -61,47 +43,35 @@ async def get_products(
     category: Optional[str] = None,
     search: Optional[str] = None,
     sort_by: Optional[str] = Query(None, description="Field to sort by"),
-    sort_order: Optional[str] = Query("asc", description="Sort order (asc or desc)"),
-    admin: UserResponse = Depends(get_current_admin),
+    sort_order: SortOrder = Query(
+        SortOrder.ASC, description="Sort order (asc or desc)"
+    ),
+    min_price: Optional[Decimal] = Query(None, ge=0, description="Minimum price"),
+    max_price: Optional[Decimal] = Query(None, ge=0, description="Maximum price"),
+    admin: UserBase = Depends(get_current_admin),
+    product_service: ProductService = Depends(),
 ):
-    db = MongoDB.get_db()
-    query = {"deleted_at": None}  # Exclude soft-deleted products
-
-    # Apply filters
-    if status:
-        query["status"] = status
-    if category:
-        query["category"] = category
-    if search:
-        query["$text"] = {"$search": search}
-
+    """Get all products with pagination and filters"""
     try:
-        # Get total count
-        total = await db.products.count_documents(query)
+        # Convert sort_order to string format expected by service
+        sort_order_str = "desc" if sort_order == SortOrder.DESC else "asc"
 
-        # Calculate pagination
-        total_pages = ceil(total / size)
-        skip = (page - 1) * size
+        # Get products with pagination and filters
+        products, total = await product_service.get_products(
+            skip=(page - 1) * size,
+            limit=size,
+            category=category,
+            search=search,
+            sort_by=sort_by,
+            sort_order=sort_order_str,
+            status=status,
+            min_price=min_price,
+            max_price=max_price,
+        )
 
-        # Prepare sort
-        sort_options = {}
-        if sort_by:
-            if sort_by == "id":
-                sort_by = "_id"
-            sort_options[sort_by] = 1 if sort_order == "asc" else -1
-        else:
-            sort_options["created_at"] = -1  # Default sort
+        # Calculate total pages
+        total_pages = (total + size - 1) // size
 
-        # Get products
-        cursor = db.products.find(query)
-        if sort_options:
-            cursor = cursor.sort(list(sort_options.items()))
-        cursor = cursor.skip(skip).limit(size)
-
-        products = []
-        async for product in cursor:
-            product["id"] = str(product.pop("_id"))
-            products.append(Product(**product))
         return {
             "items": products,
             "total": total,
@@ -113,46 +83,33 @@ async def get_products(
         }
 
     except Exception as e:
+        if "not found" in str(e).lower():
+            raise HTTPException(
+                status_code=400, detail=f"Invalid sort field: {sort_by}"
+            )
         raise HTTPException(
             status_code=500, detail=f"Error fetching products: {str(e)}"
         )
 
 
-@router.get("/{product_id}", response_model=Product)
+@router.get("/{product_id}", response_model=ProductBase)
 async def get_product(
-    product_id: ObjectIdParam, admin: UserResponse = Depends(get_current_admin)
+    product_id: ObjectIdParam,
+    admin: UserBase = Depends(get_current_admin),
+    product_service: ProductService = Depends(),
 ):
-    db = MongoDB.get_db()
-    product = await db.products.find_one({"_id": ObjectId(product_id)})
-
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-
-    product["id"] = str(product.pop("_id"))
-    return product
+    """Get product by ID"""
+    return await product_service.get_product_by_id(str(product_id))
 
 
-@router.put("/{product_id}", response_model=Product)
+@router.put("/{product_id}", response_model=ProductBase)
 async def update_product(
     product_id: ObjectIdParam,
     product_data: ProductUpdate,
-    admin: UserResponse = Depends(get_current_admin),
+    admin: UserBase = Depends(get_current_admin),
+    product_service: ProductService = Depends(),
 ):
-    db = MongoDB.get_db()
-
-    # Check if product exists
-    product = await db.products.find_one({"_id": ObjectId(product_id)})
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-
-    # Check SKU uniqueness if updating
-    if product_data.sku:
-        existing = await db.products.find_one(
-            {"sku": product_data.sku, "_id": {"$ne": ObjectId(product_id)}}
-        )
-        if existing:
-            raise HTTPException(status_code=400, detail="SKU already exists")
-
+    """Update product data"""
     # Validate image URLs if updating
     if product_data.images is not None:
         for image_url in product_data.images:
@@ -161,37 +118,36 @@ async def update_product(
                     status_code=400, detail=f"Invalid image URL: {image_url}"
                 )
 
-    # Update product
-    update_data = product_data.model_dump(exclude_unset=True)
-    update_data["updated_at"] = datetime.now(timezone.utc)
-
-    result = await db.products.find_one_and_update(
-        {"_id": ObjectId(product_id)}, {"$set": update_data}, return_document=True
-    )
-
-    result["id"] = str(result.pop("_id"))
-    return result
+    return await product_service.update_product(str(product_id), product_data)
 
 
 @router.delete("/{product_id}")
 async def delete_product(
-    product_id: ObjectIdParam, admin: UserResponse = Depends(get_current_admin)
+    product_id: ObjectIdParam,
+    admin: UserBase = Depends(get_current_admin),
+    product_service: ProductService = Depends(),
 ):
-    db = MongoDB.get_db()
-
-    # Soft delete
-    result = await db.products.find_one_and_update(
-        {"_id": ObjectId(product_id)},
-        {
-            "$set": {
-                "status": ProductStatus.DELETED,
-                "deleted_at": datetime.now(timezone.utc),
-            }
-        },
-        return_document=True,
-    )
-
-    if not result:
+    """Soft delete product"""
+    success = await product_service.soft_delete_product(str(product_id))
+    if not success:
         raise HTTPException(status_code=404, detail="Product not found")
 
     return {"message": "Product deleted successfully"}
+
+
+@router.post("/{product_id}/stock")
+async def update_product_stock(
+    product_id: ObjectIdParam,
+    quantity: int = Query(..., gt=0),
+    operation: str = Query(..., regex="^(add|subtract)$"),
+    admin: UserBase = Depends(get_current_admin),
+    product_service: ProductService = Depends(),
+):
+    """Update product stock (add or subtract)"""
+    updated_product = await product_service.update_stock(
+        str(product_id), quantity, operation
+    )
+    return {
+        "message": f"Stock {operation}ed successfully",
+        "new_stock": updated_product.stock,
+    }

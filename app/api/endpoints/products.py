@@ -1,12 +1,17 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
-from app.models.product import Product, ProductStatus
+from app.models.product import ProductBase, ProductStatus
 from app.core.validators import ObjectIdParam
-from app.db.mongodb import MongoDB
-from bson import ObjectId
-from math import ceil
+from app.services.product import ProductService
+from decimal import Decimal
+from enum import Enum
 
 router = APIRouter()
+
+
+class SortOrder(str, Enum):
+    ASC = "asc"
+    DESC = "desc"
 
 
 @router.get("/", response_model=dict)
@@ -16,50 +21,36 @@ async def get_products(
     category: Optional[str] = None,
     search: Optional[str] = None,
     sort_by: Optional[str] = Query(None, description="Field to sort by"),
-    sort_order: Optional[str] = Query("asc", description="Sort order (asc or desc)"),
+    sort_order: SortOrder = Query(
+        SortOrder.ASC, description="Sort order (asc or desc)"
+    ),
+    min_price: Optional[Decimal] = Query(None, ge=0, description="Minimum price"),
+    max_price: Optional[Decimal] = Query(None, ge=0, description="Maximum price"),
+    product_service: ProductService = Depends(),
 ):
     """
     Get public products list
     Only returns active products
     """
-    db = MongoDB.get_db()
-
-    # Base query: only active products
-    query = {"status": ProductStatus.ACTIVE, "deleted_at": None}
-
-    # Apply filters
-    if category:
-        query["category"] = category
-    if search:
-        query["$text"] = {"$search": search}
-
     try:
-        # Get total count
-        total = await db.products.count_documents(query)
+        # Convert sort_order to string format expected by service
+        sort_order_str = "desc" if sort_order == SortOrder.DESC else "asc"
 
-        # Calculate pagination
-        total_pages = ceil(total / size)
-        skip = (page - 1) * size
+        # Get products with pagination and filters
+        products, total = await product_service.get_products(
+            skip=(page - 1) * size,
+            limit=size,
+            category=category,
+            search=search,
+            sort_by=sort_by,
+            sort_order=sort_order_str,
+            status=ProductStatus.ACTIVE,  # Only active products for public
+            min_price=min_price,
+            max_price=max_price,
+        )
 
-        # Prepare sort
-        sort_options = {}
-        if sort_by:
-            if sort_by == "id":
-                sort_by = "_id"
-            sort_options[sort_by] = 1 if sort_order == "asc" else -1
-        else:
-            sort_options["created_at"] = -1  # Default sort
-
-        # Get products
-        cursor = db.products.find(query)
-        if sort_options:
-            cursor = cursor.sort(list(sort_options.items()))
-        cursor = cursor.skip(skip).limit(size)
-
-        products = []
-        async for product in cursor:
-            product["id"] = str(product.pop("_id"))
-            products.append(Product.model_validate(product))
+        # Calculate total pages
+        total_pages = (total + size - 1) // size
 
         return {
             "items": products,
@@ -72,44 +63,33 @@ async def get_products(
         }
 
     except Exception as e:
+        if "not found" in str(e).lower():
+            raise HTTPException(
+                status_code=400, detail=f"Invalid sort field: {sort_by}"
+            )
         raise HTTPException(
             status_code=500, detail=f"Error fetching products: {str(e)}"
         )
 
 
-@router.get("/{product_id}", response_model=Product)
-async def get_product(product_id: ObjectIdParam):
+@router.get("/{product_id}", response_model=ProductBase)
+async def get_product(
+    product_id: ObjectIdParam,
+    product_service: ProductService = Depends(),
+):
     """
     Get public product details
     Only returns active products
     """
-    db = MongoDB.get_db()
-
-    product = await db.products.find_one(
-        {
-            "_id": ObjectId(product_id),
-            "status": ProductStatus.ACTIVE,
-            "deleted_at": None,
-        }
-    )
-
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-
-    product["id"] = str(product.pop("_id"))
-    return Product.model_validate(product)
+    return await product_service.get_product_by_id(str(product_id))
 
 
 @router.get("/categories/", response_model=list[str])
-async def get_categories():
+async def get_categories(
+    product_service: ProductService = Depends(),
+):
     """
     Get all unique product categories
     Only from active products
     """
-    db = MongoDB.get_db()
-
-    categories = await db.products.distinct(
-        "category", {"status": ProductStatus.ACTIVE, "deleted_at": None}
-    )
-
-    return sorted(categories)
+    return await product_service.get_categories()

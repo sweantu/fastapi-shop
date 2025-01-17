@@ -41,7 +41,7 @@ class ProductCreate(BaseModel):
         return Decimal128(str(price))
 
 
-class Product(BaseModel):
+class ProductBase(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     id: str

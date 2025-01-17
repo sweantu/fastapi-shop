@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from app.models.cart import Cart, CartItem, CartItemResponse, CartResponse, CartUpsert
 from app.core.security import get_current_user
-from app.models.product import Product
+from app.models.product import ProductBase
 from app.models.user import UserResponse
 from app.db.mongodb import MongoDB
 from bson import ObjectId
