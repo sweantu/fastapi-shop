@@ -6,7 +6,7 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.core.config import settings
 from app.db.mongodb import MongoDB
-from app.models.user import User, UserRole
+from app.models.user import UserResponse, UserRole
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = HTTPBearer()
@@ -50,18 +50,20 @@ async def verify_token(token: str) -> str:
         raise HTTPException(status_code=401, detail="Invalid authentication token")
 
 
-async def get_current_user(token: str = Depends(get_token)) -> User:
+async def get_current_user(token: str = Depends(get_token)) -> UserResponse:
     username = await verify_token(token)
     db = MongoDB.get_db()
     user = await db.users.find_one({"username": username})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     user["id"] = str(user.pop("_id"))
-    return User(**user)
+    return UserResponse(**user)
 
 
 # Admin middleware
-async def get_current_admin(user: User = Depends(get_current_user)) -> User:
+async def get_current_admin(
+    user: UserResponse = Depends(get_current_user),
+) -> UserResponse:
     if not user or user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=403, detail="Not authorized to access admin resources"

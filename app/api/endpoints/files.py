@@ -2,7 +2,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, Depends
 from typing import List
 from app.core.security import get_current_user
 from app.dependencies.s3 import get_s3_service
-from app.models.user import User
+from app.models.user import UserResponse
 from app.services.s3 import S3Service
 
 router = APIRouter()
@@ -59,7 +59,7 @@ def validate_image(file: UploadFile) -> int:
 async def upload_images(
     files: List[UploadFile] = File(...),
     s3: S3Service = Depends(get_s3_service),
-    user: User = Depends(get_current_user),
+    user: UserResponse = Depends(get_current_user),
 ):
     """
     Upload multiple image files
@@ -127,7 +127,7 @@ async def upload_images(
 async def delete_image(
     filename: str,
     s3: S3Service = Depends(get_s3_service),
-    user: User = Depends(get_current_user),
+    user: UserResponse = Depends(get_current_user),
 ):
     """Delete an image from storage"""
     try:

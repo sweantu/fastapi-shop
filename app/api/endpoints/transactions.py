@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from app.core.security import get_current_user
 from app.models.transaction import TransactionCreate, TransactionType, Transaction
-from app.models.user import User
+from app.models.user import UserResponse
 from app.services.transaction import TransactionService
 from decimal import Decimal
 from typing import List
@@ -13,12 +13,10 @@ router = APIRouter()
 async def deposit_money(
     amount: Decimal,
     description: str | None = None,
-    current_user: User = Depends(get_current_user),
+    current_user: UserResponse = Depends(get_current_user),
     transaction_service: TransactionService = Depends(),
 ):
-    """
-    Deposit money to user balance
-    """
+    """Deposit money to user balance"""
     transaction_data = TransactionCreate(
         type=TransactionType.DEPOSIT, amount=amount, description=description
     )
@@ -32,12 +30,10 @@ async def deposit_money(
 async def withdraw_money(
     amount: Decimal,
     description: str | None = None,
-    current_user: User = Depends(get_current_user),
+    current_user: UserResponse = Depends(get_current_user),
     transaction_service: TransactionService = Depends(),
 ):
-    """
-    Withdraw money from user balance
-    """
+    """Withdraw money from user balance"""
     transaction_data = TransactionCreate(
         type=TransactionType.WITHDRAW, amount=amount, description=description
     )
@@ -52,12 +48,10 @@ async def get_transactions(
     skip: int = 0,
     limit: int = 50,
     transaction_type: TransactionType | None = None,
-    current_user: User = Depends(get_current_user),
+    current_user: UserResponse = Depends(get_current_user),
     transaction_service: TransactionService = Depends(),
 ):
-    """
-    Get user's transaction history
-    """
+    """Get user's transaction history"""
     return await transaction_service.get_user_transactions(
         user_id=current_user.id,
         skip=skip,

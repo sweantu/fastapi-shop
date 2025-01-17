@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from app.models.cart import Cart, CartItem, CartItemResponse, CartResponse, CartUpsert
 from app.core.security import get_current_user
 from app.models.product import Product
-from app.models.user import User
+from app.models.user import UserResponse
 from app.db.mongodb import MongoDB
 from bson import ObjectId
 from datetime import datetime, timezone
@@ -12,7 +12,7 @@ router = APIRouter()
 
 
 @router.get("/", response_model=CartResponse)
-async def get_cart(current_user: User = Depends(get_current_user)):
+async def get_cart(current_user: UserResponse = Depends(get_current_user)):
     """Get user's cart"""
     db = MongoDB.get_db()
 
@@ -60,7 +60,7 @@ async def get_cart(current_user: User = Depends(get_current_user)):
 
 @router.put("/")
 async def upsert_cart(
-    cart_upsert: CartUpsert, current_user: User = Depends(get_current_user)
+    cart_upsert: CartUpsert, current_user: UserResponse = Depends(get_current_user)
 ):
     """Update or insert cart items"""
     db = MongoDB.get_db()

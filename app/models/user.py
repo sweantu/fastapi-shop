@@ -18,6 +18,28 @@ class UserRole(str, Enum):
     USER = "user"
 
 
+class UserBase(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    id: str
+    username: str
+    password: str
+    name: str
+    email: EmailStr
+    avatar: Optional[str] = None
+    balance: Decimal = Field(default=Decimal("0.00"), ge=0)
+    role: UserRole
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    deleted_at: Optional[datetime] = None
+
+    @field_validator("balance", mode="before")
+    def validate_balance(cls, v):
+        if isinstance(v, Decimal128):
+            v = str(v)
+        return Decimal(str(v)).quantize(Decimal("0.01"))
+
+
 class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=6)
@@ -26,7 +48,8 @@ class UserCreate(BaseModel):
     role: UserRole = UserRole.USER  # Default role for new users
     avatar: Optional[str] = None
 
-class User(BaseModel):
+
+class UserResponse(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     id: str
