@@ -5,18 +5,18 @@ from typing import Optional, List
 from decimal import Decimal
 
 
-class CartItem(BaseModel):
+class CartItemBase(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     product_id: str
     quantity: int
 
 
-class Cart(BaseModel):
+class CartBase(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     user_id: str
-    items: List[CartItem] = Field(default=[])
+    items: List[CartItemBase] = Field(default=[])
     updated_at: Optional[datetime] = None
 
 

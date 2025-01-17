@@ -51,6 +51,17 @@ class ProductService:
         product["id"] = str(product.pop("_id"))
         return ProductBase.model_validate(product)
 
+    async def get_products_by_ids(self, product_ids: List[str]) -> List[ProductBase]:
+        """Get products by IDs"""
+        cursor = self.db.products.find(
+            {"_id": {"$in": [ObjectId(id) for id in product_ids]}}
+        )
+        products = []
+        async for doc in cursor:
+            doc["id"] = str(doc.pop("_id"))
+            products.append(ProductBase.model_validate(doc))
+        return products
+
     async def update_product(
         self, product_id: str, product_data: ProductUpdate
     ) -> ProductBase:
