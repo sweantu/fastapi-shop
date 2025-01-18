@@ -2,9 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.core.security import get_current_user
 from app.models.transaction import (
     TransactionCreate,
+    TransactionDeposit,
     TransactionStatus,
     TransactionType,
     TransactionBase,
+    TransactionWithdraw,
 )
 from app.models.user import UserResponse
 from app.services.transaction import TransactionService
@@ -17,8 +19,7 @@ router = APIRouter()
 
 @router.post("/deposit", response_model=TransactionBase)
 async def deposit_money(
-    amount: Decimal,
-    description: str | None = None,
+    transaction_deposit: TransactionDeposit,
     current_user: UserResponse = Depends(get_current_user),
     transaction_service: TransactionService = Depends(),
     user_service: UserService = Depends(),
@@ -26,7 +27,9 @@ async def deposit_money(
     """Deposit money to user balance"""
     CURRENT_BALANCE = current_user.balance
     transaction_data = TransactionCreate(
-        type=TransactionType.DEPOSIT, amount=amount, description=description
+        type=TransactionType.DEPOSIT,
+        amount=transaction_deposit.amount,
+        description=transaction_deposit.description,
     )
 
     try:
@@ -34,7 +37,7 @@ async def deposit_money(
         await user_service.update_balance(
             user_id=current_user.id,
             current_balance=CURRENT_BALANCE,
-            amount=amount,
+            amount=transaction_deposit.amount,
             operation="add",
         )
 
@@ -52,8 +55,7 @@ async def deposit_money(
 
 @router.post("/withdraw", response_model=TransactionBase)
 async def withdraw_money(
-    amount: Decimal,
-    description: str | None = None,
+    transaction_withdraw: TransactionWithdraw,
     current_user: UserResponse = Depends(get_current_user),
     transaction_service: TransactionService = Depends(),
     user_service: UserService = Depends(),
@@ -61,7 +63,9 @@ async def withdraw_money(
     """Withdraw money from user balance"""
     CURRENT_BALANCE = current_user.balance
     transaction_data = TransactionCreate(
-        type=TransactionType.WITHDRAW, amount=amount, description=description
+        type=TransactionType.WITHDRAW,
+        amount=transaction_withdraw.amount,
+        description=transaction_withdraw.description,
     )
 
     try:
@@ -69,7 +73,7 @@ async def withdraw_money(
         await user_service.update_balance(
             user_id=current_user.id,
             current_balance=CURRENT_BALANCE,
-            amount=amount,
+            amount=transaction_withdraw.amount,
             operation="subtract",
         )
 

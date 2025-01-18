@@ -52,3 +52,25 @@ class TransactionCreate(BaseModel):
     @field_validator("amount")
     def validate_amount(cls, v):
         return Decimal(str(v)).quantize(Decimal("0.01"))
+
+
+class TransactionDeposit(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    amount: Decimal = Field(..., gt=0)
+    description: Optional[str] = None
+
+    @field_validator("amount")
+    def validate_amount(cls, v):
+        return Decimal(str(v)).quantize(Decimal("0.01"))
+
+
+class TransactionWithdraw(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    amount: Decimal = Field(..., gt=0)
+    description: Optional[str] = None
+
+    @field_validator("amount")
+    def validate_amount(cls, v):
+        return Decimal(str(v)).quantize(Decimal("0.01"))
