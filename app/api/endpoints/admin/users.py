@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
-from typing import Optional
+from typing import Literal, Optional, Union
 from app.models.user import UserResponse, UserRole, UserUpdateByAdmin, UserBase
 from app.core.security import get_current_admin
 from app.core.validators import ObjectIdParam
@@ -18,7 +18,7 @@ class SortOrder(str, Enum):
 async def get_users(
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(10, ge=1, le=100, description="Items per page"),
-    role: Optional[UserRole] = Query(None, description="User role"),
+    role: Optional[Union[UserRole, Literal[""]]] = Query(None, description="User role"),
     search: Optional[str] = Query(None, description="Search term"),
     sort_by: Optional[str] = Query(
         None, description="Field to sort by (e.g., username, created_at)"

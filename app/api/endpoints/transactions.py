@@ -10,7 +10,7 @@ from app.models.user import UserResponse
 from app.services.transaction import TransactionService
 from app.services.user import UserService
 from decimal import Decimal
-from typing import List, Optional
+from typing import List, Literal, Optional, Union
 
 router = APIRouter()
 
@@ -89,14 +89,16 @@ async def withdraw_money(
 async def get_transactions(
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(10, ge=1, le=100, description="Items per page"),
-    transaction_type: Optional[TransactionType] = Query(
+    transaction_type: Optional[Union[TransactionType, Literal[""]]] = Query(
         None, description="Transaction type"
     ),
     sort_by: Optional[str] = Query(None, description="Field to sort by"),
     sort_order: Optional[str] = Query("desc", description="Sort order (asc or desc)"),
     min_amount: Optional[Decimal] = Query(None, ge=0, description="Minimum amount"),
     max_amount: Optional[Decimal] = Query(None, ge=0, description="Maximum amount"),
-    status: Optional[TransactionStatus] = Query(None, description="Transaction status"),
+    status: Optional[Union[TransactionStatus, Literal[""]]] = Query(
+        None, description="Transaction status"
+    ),
     current_user: UserResponse = Depends(get_current_user),
     transaction_service: TransactionService = Depends(),
 ):
