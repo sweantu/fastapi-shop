@@ -89,7 +89,7 @@ async def withdraw_money(
 async def get_transactions(
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(10, ge=1, le=100, description="Items per page"),
-    transaction_type: Optional[Union[TransactionType, Literal[""]]] = Query(
+    type: Optional[Union[TransactionType, Literal[""]]] = Query(
         None, description="Transaction type"
     ),
     sort_by: Optional[str] = Query(None, description="Field to sort by"),
@@ -109,7 +109,7 @@ async def get_transactions(
             user_id=current_user.id,
             skip=(page - 1) * size,
             limit=size,
-            transaction_type=transaction_type,
+            transaction_type=type,
             sort_by=sort_by,
             sort_order=sort_order,
             min_amount=min_amount,

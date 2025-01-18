@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
-from typing import Optional
+from typing import Literal, Optional, Union
 from app.models.product import ProductBase, ProductCreate, ProductUpdate, ProductStatus
 from app.models.user import UserBase
 from app.core.security import get_current_admin
@@ -39,7 +39,9 @@ async def create_product(
 async def get_products(
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(10, ge=1, le=100, description="Items per page"),
-    status: Optional[ProductStatus] = Query(None, description="Product status"),
+    status: Optional[Union[ProductStatus, Literal[""]]] = Query(
+        None, description="Product status"
+    ),
     category: Optional[str] = Query(None, description="Product category"),
     search: Optional[str] = Query(None, description="Search term"),
     sort_by: Optional[str] = Query(None, description="Field to sort by"),
