@@ -39,9 +39,9 @@ async def create_product(
 async def get_products(
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(10, ge=1, le=100, description="Items per page"),
-    status: Optional[ProductStatus] = None,
-    category: Optional[str] = None,
-    search: Optional[str] = None,
+    status: Optional[ProductStatus] = Query(None, description="Product status"),
+    category: Optional[str] = Query(None, description="Product category"),
+    search: Optional[str] = Query(None, description="Search term"),
     sort_by: Optional[str] = Query(None, description="Field to sort by"),
     sort_order: SortOrder = Query(
         SortOrder.ASC, description="Sort order (asc or desc)"

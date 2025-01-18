@@ -18,8 +18,8 @@ class SortOrder(str, Enum):
 async def get_users(
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(10, ge=1, le=100, description="Items per page"),
-    role: Optional[UserRole] = None,
-    search: Optional[str] = None,
+    role: Optional[UserRole] = Query(None, description="User role"),
+    search: Optional[str] = Query(None, description="Search term"),
     sort_by: Optional[str] = Query(
         None, description="Field to sort by (e.g., username, created_at)"
     ),
