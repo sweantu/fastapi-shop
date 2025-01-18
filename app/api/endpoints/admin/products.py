@@ -53,6 +53,7 @@ async def get_products(
 ):
     """Get all products with pagination and filters"""
     try:
+        print("sort_by123", sort_by)
         # Convert sort_order to string format expected by service
         sort_order_str = "desc" if sort_order == SortOrder.DESC else "asc"
 

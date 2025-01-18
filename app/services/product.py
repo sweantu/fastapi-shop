@@ -123,7 +123,10 @@ class ProductService:
             query["category"] = category
 
         if search:
-            query["$text"] = {"$search": search}
+            query["$or"] = [
+                {"name": {"$regex": search, "$options": "i"}},
+                {"description": {"$regex": search, "$options": "i"}},
+            ]
 
         if min_price is not None or max_price is not None:
             price_query = {}
@@ -135,7 +138,7 @@ class ProductService:
                 query["price"] = price_query
 
         # Handle sort parameters
-        sort_field = sort_by if sort_by is not None else "created_at"
+        sort_field = sort_by if sort_by else "created_at"
         if sort_field == "id":
             sort_field = "_id"
         sort_direction = -1 if sort_order == "desc" else 1

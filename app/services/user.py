@@ -146,6 +146,7 @@ class UserService:
         # Build query
         query = {"deleted_at": None}
         if search:
+            print("search123", search)
             query["$or"] = [
                 {"username": {"$regex": search, "$options": "i"}},
                 {"email": {"$regex": search, "$options": "i"}},
@@ -155,7 +156,7 @@ class UserService:
             query["role"] = role
 
         # Handle sort parameters
-        sort_field = sort_by if sort_by is not None else "created_at"
+        sort_field = sort_by if sort_by else "created_at"
         sort_direction = -1 if sort_order == "desc" else 1
 
         # Get total count

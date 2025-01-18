@@ -88,7 +88,7 @@ class TransactionService:
                 query["amount"] = amount_query
 
         # Handle sort parameters
-        sort_field = sort_by if sort_by is not None else "created_at"
+        sort_field = sort_by if sort_by else "created_at"
         if sort_field == "id":
             sort_field = "_id"
         sort_direction = -1 if sort_order == "desc" else 1
