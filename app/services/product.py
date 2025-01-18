@@ -38,13 +38,7 @@ class ProductService:
 
     async def get_product_by_id(self, product_id: str) -> ProductBase:
         """Get product by ID"""
-        product = await self.db.products.find_one(
-            {
-                "_id": ObjectId(product_id),
-                "status": ProductStatus.ACTIVE,
-                "deleted_at": None,
-            }
-        )
+        product = await self.db.products.find_one({"_id": ObjectId(product_id)})
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
 
