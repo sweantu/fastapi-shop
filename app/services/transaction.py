@@ -1,5 +1,5 @@
 from app.models.transaction import (
-    Transaction,
+    TransactionBase,
     TransactionCreate,
     TransactionType,
     TransactionStatus,
@@ -17,16 +17,13 @@ class TransactionService:
         self.db = MongoDB.get_db()
 
     async def create_transaction(
-        self, user_id: str, transaction_data: TransactionCreate
-    ) -> Transaction:
+        self,
+        transaction_data: TransactionCreate,
+        user_id: str,
+        current_balance: Decimal,
+    ) -> TransactionBase:
         """Create a new transaction"""
 
-        # Get current user balance
-        user = await self.db.users.find_one({"_id": ObjectId(user_id)})
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        current_balance = Decimal(str(user["balance"]))
         new_balance = current_balance
 
         # Calculate new balance
@@ -53,36 +50,11 @@ class TransactionService:
             "updated_at": None,
         }
 
-        try:
-            # Update user balance first (atomic operation)
-            result = await self.db.users.find_one_and_update(
-                {
-                    "_id": ObjectId(user_id),
-                    "balance": Decimal128(str(current_balance)),  # Optimistic locking
-                },
-                {
-                    "$set": {
-                        "balance": Decimal128(str(new_balance)),
-                        "updated_at": datetime.now(timezone.utc),
-                    }
-                },
-                return_document=True,
-            )
+        # Insert transaction
+        result = await self.db.transactions.insert_one(transaction)
+        transaction["id"] = str(result.inserted_id)
 
-            if not result:
-                raise HTTPException(
-                    status_code=409, detail="Balance was modified by another operation"
-                )
-
-            # Insert transaction
-            result = await self.db.transactions.insert_one(transaction)
-            transaction["id"] = str(result.inserted_id)
-
-            return Transaction.model_validate(transaction)
-
-        except Exception as e:
-            # Log the error here
-            raise HTTPException(status_code=500, detail=f"Transaction failed: {str(e)}")
+        return TransactionBase.model_validate(transaction)
 
     async def get_user_transactions(
         self,
@@ -90,21 +62,48 @@ class TransactionService:
         skip: int = 0,
         limit: int = 50,
         transaction_type: Optional[TransactionType] = None,
-    ) -> List[Transaction]:
-        """Get user's transaction history"""
+        sort_by: Optional[str] = "created_at",
+        sort_order: Optional[str] = "desc",
+        min_amount: Optional[Decimal] = None,
+        max_amount: Optional[Decimal] = None,
+        status: Optional[TransactionStatus] = None,
+    ) -> tuple[List[TransactionBase], int]:
+        """Get user's transaction history with pagination, filtering and sorting"""
 
         # Build query
         query = {"user_id": user_id}
         if transaction_type:
             query["type"] = transaction_type
 
+        if status:
+            query["status"] = status
+
+        if min_amount is not None or max_amount is not None:
+            amount_query = {}
+            if min_amount is not None:
+                amount_query["$gte"] = Decimal128(str(min_amount))
+            if max_amount is not None:
+                amount_query["$lte"] = Decimal128(str(max_amount))
+            if amount_query:
+                query["amount"] = amount_query
+
+        # Handle sort parameters
+        sort_field = sort_by if sort_by is not None else "created_at"
+        if sort_field == "id":
+            sort_field = "_id"
+        sort_direction = -1 if sort_order == "desc" else 1
+
+        # Get total count
+        total = await self.db.transactions.count_documents(query)
+
         # Get transactions
         cursor = self.db.transactions.find(query)
-        cursor = cursor.sort("created_at", -1).skip(skip).limit(limit)
+        cursor = cursor.sort(sort_field, sort_direction)
+        cursor = cursor.skip(skip).limit(limit)
 
         transactions = []
         async for doc in cursor:
             doc["id"] = str(doc.pop("_id"))
-            transactions.append(Transaction.model_validate(doc))
+            transactions.append(TransactionBase.model_validate(doc))
 
-        return transactions
+        return transactions, total

@@ -84,7 +84,11 @@ class UserService:
         return UserBase.model_validate(result)
 
     async def update_balance(
-        self, user_id: str, amount: Decimal, operation: str = "add"
+        self,
+        user_id: str,
+        current_balance: Decimal,
+        amount: Decimal,
+        operation: str = "add",
     ) -> UserBase:
         """Update user balance (add or subtract)"""
         if operation not in ["add", "subtract"]:
@@ -94,21 +98,28 @@ class UserService:
         if amount <= 0:
             raise HTTPException(status_code=400, detail="Amount must be positive")
 
+        new_balance = (
+            current_balance + amount if operation == "add" else current_balance - amount
+        )
+
+        if new_balance < 0:
+            raise HTTPException(status_code=400, detail="Balance cannot be negative")
+
         update_result = await self.db.users.find_one_and_update(
-            {"_id": ObjectId(user_id)},
+            {"_id": ObjectId(user_id), "balance": Decimal128(str(current_balance))},
             {
-                "$inc": {
-                    "balance": Decimal128(
-                        str(amount if operation == "add" else -amount)
-                    )
+                "$set": {
+                    "balance": Decimal128(str(new_balance)),
+                    "updated_at": datetime.now(timezone.utc),
                 },
-                "$set": {"updated_at": datetime.now(timezone.utc)},
             },
             return_document=True,
         )
 
         if not update_result:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(
+                status_code=409, detail="Balance was modified by another operation"
+            )
 
         update_result["id"] = str(update_result.pop("_id"))
         return UserBase.model_validate(update_result)

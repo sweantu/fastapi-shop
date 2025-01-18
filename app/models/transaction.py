@@ -20,7 +20,7 @@ class TransactionStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-class Transaction(BaseModel):
+class TransactionBase(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     id: str
