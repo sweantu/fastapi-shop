@@ -14,6 +14,7 @@ MIGRATIONS = [
     "20250111_001_add_cart_indexes.AddCartIndexesMigration",
     "20250113_001_add_user_balance.AddUserBalanceMigration",
     "20250113_002_create_transactions.CreateTransactionsMigration",
+    "20250119_001_add_order_indexes.AddOrderIndexesMigration",
 ]
 
 
