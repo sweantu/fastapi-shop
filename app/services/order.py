@@ -229,3 +229,39 @@ class OrderService:
                 total_amount / total_orders if total_orders > 0 else Decimal("0")
             ),
         )
+
+    async def update_order_payment_status(
+        self, order_id: str, payment_status: PaymentStatus, transaction_id: str = None
+    ) -> None:
+        """Update order payment status"""
+        update_data = {
+            "payment_status": payment_status,
+            "updated_at": datetime.now(timezone.utc),
+        }
+        if transaction_id:
+            update_data["transaction_id"] = transaction_id
+
+        result = await self.db.orders.update_one(
+            {"_id": ObjectId(order_id)},
+            {"$set": update_data},
+        )
+
+        if result.modified_count == 0:
+            raise HTTPException(
+                status_code=400, detail="Failed to update payment status"
+            )
+
+    async def update_order_status(self, order_id: str, status: OrderStatus) -> None:
+        """Update order status"""
+        result = await self.db.orders.update_one(
+            {"_id": ObjectId(order_id)},
+            {
+                "$set": {
+                    "status": status,
+                    "updated_at": datetime.now(timezone.utc),
+                }
+            },
+        )
+
+        if result.modified_count == 0:
+            raise HTTPException(status_code=400, detail="Failed to update order status")

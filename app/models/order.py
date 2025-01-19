@@ -14,7 +14,7 @@ class OrderStatus(str, Enum):
     DELIVERED = "delivered"
     CANCELLED = "cancelled"
     REFUNDED = "refunded"
-
+    FAILED = "failed"
 
 class PaymentStatus(str, Enum):
     PENDING = "pending"
@@ -57,6 +57,7 @@ class OrderBase(BaseModel):
     shipped_at: Optional[datetime] = None
     delivered_at: Optional[datetime] = None
     tracking_number: Optional[str] = None
+    transaction_id: Optional[str] = None
 
     @field_validator("total_amount", mode="before")
     def validate_price(cls, v):

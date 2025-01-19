@@ -1,3 +1,4 @@
+from app.models.order import OrderBase
 from app.models.product import ProductBase, ProductCreate, ProductUpdate, ProductStatus
 from app.db.mongodb import MongoDB
 from fastapi import HTTPException
@@ -159,7 +160,7 @@ class ProductService:
         if operation not in ["add", "subtract"]:
             raise ValueError("Invalid operation. Use 'add' or 'subtract'")
 
-        if quantity < 0:
+        if quantity <= 0:
             raise HTTPException(status_code=400, detail="Quantity must be positive")
 
         # For subtract operation, check if enough stock
@@ -182,6 +183,44 @@ class ProductService:
 
         update_result["id"] = str(update_result.pop("_id"))
         return ProductBase.model_validate(update_result)
+
+    async def update_stock_after_order_payment(self, order: OrderBase) -> None:
+        """Update product stock after order payment"""
+        updated_products = []
+        try:
+            # First pass - attempt to update all products
+            for item in order.items:
+                update_result = await self.db.products.find_one_and_update(
+                    {
+                        "_id": ObjectId(item.product_id),
+                        "stock": {"$gte": item.quantity},
+                    },
+                    {
+                        "$inc": {"stock": -item.quantity},
+                        "$set": {"updated_at": datetime.now(timezone.utc)},
+                    },
+                    return_document=True,
+                )
+                if not update_result:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Product stock was modified by another operation or insufficient stock",
+                    )
+                updated_products.append(
+                    {"product_id": item.product_id, "quantity": item.quantity}
+                )
+
+        except Exception as e:
+            # If any update fails, rollback all previous updates
+            for update in updated_products:
+                await self.db.products.find_one_and_update(
+                    {"_id": ObjectId(update["product_id"])},
+                    {
+                        "$inc": {"stock": update["quantity"]},
+                        "$set": {"updated_at": datetime.now(timezone.utc)},
+                    },
+                )
+            raise e
 
     async def get_categories(self) -> List[str]:
         """Get all unique product categories"""
