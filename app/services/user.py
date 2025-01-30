@@ -1,6 +1,7 @@
 from app.models.user import (
     UserBase,
     UserCreate,
+    UserCreateByGoogle,
     UserUpdate,
     UserUpdateByAdmin,
     UserRole,
@@ -12,7 +13,7 @@ from bson import ObjectId, Decimal128
 from decimal import Decimal
 from typing import List, Optional
 
-from app.utils.auth import hash_password
+from app.utils.auth import create_username, hash_password
 
 
 class UserService:
@@ -47,6 +48,27 @@ class UserService:
 
         return UserBase.model_validate(created_user)
 
+    async def create_user_by_google(self, user_data: UserCreateByGoogle) -> UserBase:
+        """Create a new user by Google"""
+        if await self.db.users.find_one({"email": user_data.email}):
+            raise HTTPException(status_code=400, detail="Email already registered")
+        user_dict = user_data.model_dump()
+        user_dict.update(
+            {
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": None,
+                "deleted_at": None,
+                "balance": Decimal128("0.00"),
+                "role": UserRole.USER,
+                "username": create_username(user_dict["name"]),
+            }
+        )
+        result = await self.db.users.insert_one(user_dict)
+        created_user = await self.db.users.find_one({"_id": result.inserted_id})
+        created_user["id"] = str(created_user.pop("_id"))
+
+        return UserBase.model_validate(created_user)
+
     async def get_user_by_id(self, user_id: str) -> UserBase:
         """Get user by ID"""
         user = await self.db.users.find_one({"_id": ObjectId(user_id)})
@@ -59,6 +81,24 @@ class UserService:
     async def get_user_by_username(self, username: str) -> UserBase:
         """Get user by username"""
         user = await self.db.users.find_one({"username": username})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        user["id"] = str(user.pop("_id"))
+        return UserBase.model_validate(user)
+
+    async def get_user_by_google_id(self, google_id: str) -> UserBase:
+        """Get user by Google ID"""
+        user = await self.db.users.find_one({"google_id": google_id})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        user["id"] = str(user.pop("_id"))
+        return UserBase.model_validate(user)
+
+    async def get_user_by_email(self, email: str) -> UserBase:
+        """Get user by email"""
+        user = await self.db.users.find_one({"email": email})
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 

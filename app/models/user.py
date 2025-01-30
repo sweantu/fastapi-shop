@@ -23,7 +23,7 @@ class UserBase(BaseModel):
 
     id: str
     username: str
-    password: str
+    password: Optional[str] = None
     name: str
     email: EmailStr
     avatar: Optional[str] = None
@@ -46,6 +46,13 @@ class UserCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     email: EmailStr
     role: UserRole = UserRole.USER  # Default role for new users
+    avatar: Optional[str] = None
+
+
+class UserCreateByGoogle(BaseModel):
+    google_id: str
+    email: EmailStr
+    name: str
     avatar: Optional[str] = None
 
 

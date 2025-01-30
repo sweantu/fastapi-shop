@@ -1,4 +1,5 @@
 import os
+import random
 from passlib.context import CryptContext
 from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
@@ -52,3 +53,8 @@ async def verify_token(token: str) -> str:
         return username
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid authentication token")
+
+
+def create_username(name: str) -> str:
+    random_num = random.randint(1000000, 9999999)
+    return f"{name.lower().replace(' ', '_')}_{random_num}"
