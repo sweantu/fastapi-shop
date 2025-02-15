@@ -1,0 +1,15 @@
+services:
+  fastapi-shop:
+    build: .
+    image: fastapi-shop
+    container_name: fastapi-shop
+    restart: always
+    env_file: .env
+    ports:
+      - "80:80"
+    networks:
+      - docker_network
+
+networks:
+  docker_network:
+    external: true

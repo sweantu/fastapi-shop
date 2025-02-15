@@ -1,0 +1,17 @@
+# Ignore specific files and directories
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+*.log
+*.swp
+*.swo
+.DS_Store
+.idea/
+.vscode/
+.git/
+.gitignore
+*.md
